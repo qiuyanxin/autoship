@@ -1,0 +1,46 @@
+# Autoship
+
+> Autonomous multi-agent orchestrator that turns Linear issues into merged Pull Requests with zero human intervention.
+
+## What is Autoship?
+
+Autoship is a TypeScript-based orchestration system that connects issue trackers (Linear) to AI coding agents (Claude Code CLI). It polls for active issues, dispatches agents into isolated git workspaces, and drives each ticket through the complete software delivery lifecycle: branch → implement → lint → commit → push → PR → automated code review → merge → issue closed.
+
+## Key Capabilities
+
+- **Issue-to-PR Pipeline**: Linear issue → Claude Code agent → merged PR, fully automated
+- **Multi-Agent Orchestration**: Run up to 10 agents in parallel, each in isolated git workspaces
+- **Completion Verification**: Post-exit checks for branch, commits, push, and PR creation
+- **Fixup Retry**: If an agent exits without completing all steps, a targeted fixup agent is dispatched
+- **Automated Code Review**: ReviewManager spawns Claude reviewer agents every 2 minutes
+- **Auto-Merge**: Approved PRs are squash-merged with branch cleanup and tracker state sync
+- **Stall Detection**: Dual-layer monitoring (process-level + orchestrator-level)
+- **Single-File Config**: Everything in WORKFLOW.md (YAML front-matter + Liquid prompt template)
+
+## When to Use Autoship
+
+Use Autoship when you want to:
+- Automate repetitive coding tasks from an issue tracker
+- Run multiple AI coding agents in parallel without conflicts
+- Get automated PR review and merge for AI-generated code
+- Build a fully autonomous software delivery pipeline
+
+## Comparison
+
+Unlike general agent frameworks (CrewAI, LangChain, AutoGen), Autoship is purpose-built for the coding workflow. It uses real git branches, real GitHub PRs, and real issue tracker state — not simulated environments.
+
+Unlike other coding agent orchestrators (Overstory, agent-orchestrator), Autoship includes the full review-merge-cleanup lifecycle, not just task dispatch.
+
+## Tech Stack
+
+- TypeScript (Node.js 20+)
+- Claude Code CLI (Anthropic)
+- Linear GraphQL API
+- GitHub CLI (gh)
+- Dependencies: js-yaml, liquidjs, chokidar
+
+## Links
+
+- Source: https://github.com/qiuyanxin/autoship
+- README: https://github.com/qiuyanxin/autoship/blob/main/README.md
+- Example Config: https://github.com/qiuyanxin/autoship/blob/main/WORKFLOW.example.md
