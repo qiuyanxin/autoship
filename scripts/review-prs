@@ -1,0 +1,312 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ─── Symphony PR Review ──────────────────────────────────────────────
+# Spawns Claude reviewer agents to review open PRs in parallel.
+# After review, can auto-merge approved PRs and update Linear issues.
+#
+# Usage:
+#   scripts/review-prs              # Review all open PRs
+#   scripts/review-prs 5 7          # Review specific PRs
+#   scripts/review-prs --auto-merge # Review + auto-merge passing PRs
+# ─────────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && git rev-parse --show-toplevel)"
+RESULTS_DIR="${REPO_ROOT}/.claude/results"
+REVIEWER_PROMPT="${SCRIPT_DIR}/reviewer-prompt.md"
+
+# ─── Colors ──────────────────────────────────────────────────────────
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# ─── Parse Args ──────────────────────────────────────────────────────
+
+AUTO_MERGE=false
+MAX_PARALLEL=5
+MODEL="sonnet"
+BUDGET="0.50"
+PR_NUMBERS=()
+LINEAR_DONE_STATE_ID=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --auto-merge)    AUTO_MERGE=true; shift ;;
+    --max-parallel)  MAX_PARALLEL="$2"; shift 2 ;;
+    --model)         MODEL="$2"; shift 2 ;;
+    --budget)        BUDGET="$2"; shift 2 ;;
+    --linear-done)   LINEAR_DONE_STATE_ID="$2"; shift 2 ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: scripts/review-prs [PR numbers...] [options]
+
+Options:
+  --auto-merge       Merge PRs that pass review (squash + delete branch)
+  --max-parallel N   Max concurrent review agents (default: 5)
+  --model M          Claude model (default: sonnet)
+  --budget N         Review budget per PR in USD (default: 0.50)
+  --linear-done ID   Linear state ID for "Done" (auto-transition after merge)
+
+Examples:
+  scripts/review-prs                    # Review all open PRs
+  scripts/review-prs 12 15             # Review PR #12 and #15
+  scripts/review-prs --auto-merge      # Review + merge approved
+  scripts/review-prs --max-parallel 3  # Max 3 agents at once
+  scripts/review-prs --model opus      # Use opus for deeper review
+EOF
+      exit 0
+      ;;
+    *)
+      PR_NUMBERS+=("$1"); shift ;;
+  esac
+done
+
+# ─── Preflight ───────────────────────────────────────────────────────
+
+for tool in gh jq claude; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo -e "${RED}ERROR: '$tool' is not installed${NC}" >&2
+    exit 1
+  fi
+done
+
+if ! gh auth status &>/dev/null; then
+  echo -e "${RED}ERROR: Not authenticated with GitHub (run 'gh auth login')${NC}" >&2
+  exit 1
+fi
+
+if [[ ! -f "$REVIEWER_PROMPT" ]]; then
+  echo -e "${RED}ERROR: Reviewer prompt not found at ${REVIEWER_PROMPT}${NC}" >&2
+  exit 1
+fi
+
+mkdir -p "$RESULTS_DIR"
+
+# ─── Fetch PRs ───────────────────────────────────────────────────────
+
+echo -e "${BOLD}═══ Symphony PR Review ═══${NC}"
+echo ""
+
+if [[ ${#PR_NUMBERS[@]} -gt 0 ]]; then
+  PRS_JSON='[]'
+  for num in "${PR_NUMBERS[@]}"; do
+    PR_DATA=$(gh pr view "$num" --json number,title,headRefName,url 2>/dev/null || echo '{}')
+    if [[ $(echo "$PR_DATA" | jq 'has("number")') == "true" ]]; then
+      PRS_JSON=$(echo "$PRS_JSON" | jq --argjson pr "$PR_DATA" '. + [$pr]')
+    else
+      echo -e "${YELLOW}WARNING: PR #${num} not found${NC}"
+    fi
+  done
+else
+  PRS_JSON=$(gh pr list --state open --json number,title,headRefName,url)
+fi
+
+PR_COUNT=$(echo "$PRS_JSON" | jq 'length')
+
+if [[ "$PR_COUNT" -eq 0 ]]; then
+  echo -e "${YELLOW}No open PRs to review${NC}"
+  exit 0
+fi
+
+echo -e "${GREEN}Found $PR_COUNT PR(s) to review${NC}"
+echo ""
+
+# Show PR list
+for i in $(seq 0 $((PR_COUNT - 1))); do
+  PR_NUM=$(echo "$PRS_JSON" | jq -r ".[$i].number")
+  PR_TITLE=$(echo "$PRS_JSON" | jq -r ".[$i].title")
+  echo -e "  ${CYAN}#${PR_NUM}${NC} ${PR_TITLE}"
+done
+echo ""
+
+# ─── Load Reviewer Prompt ───────────────────────────────────────────
+
+REVIEWER_PROMPT_BASE=$(cat "$REVIEWER_PROMPT")
+
+# ─── Spawn Review Agents (batched, max $MAX_PARALLEL at a time) ─────
+
+ENTRIES=()
+BATCH_PIDS=()
+BATCH_NUM=0
+
+echo -e "${BLUE}→ Max parallel agents: ${MAX_PARALLEL}${NC}"
+echo ""
+
+for i in $(seq 0 $((PR_COUNT - 1))); do
+  PR_NUM=$(echo "$PRS_JSON" | jq -r ".[$i].number")
+  PR_TITLE=$(echo "$PRS_JSON" | jq -r ".[$i].title")
+  RESULT_FILE="${RESULTS_DIR}/review-pr-${PR_NUM}.json"
+
+  echo -e "${CYAN}▶ Spawning reviewer for PR #${PR_NUM}: ${PR_TITLE}${NC}"
+
+  FULL_PROMPT="$(cat <<PROMPT
+${REVIEWER_PROMPT_BASE}
+
+---
+
+## Your Assignment
+
+Review PR #${PR_NUM}: "${PR_TITLE}"
+
+Use these commands to inspect the PR:
+\`\`\`bash
+gh pr view ${PR_NUM} --json title,body,baseRefName,headRefName,files,additions,deletions
+gh pr diff ${PR_NUM}
+\`\`\`
+
+Then read all changed files in full and provide your structured review.
+PROMPT
+)"
+
+  (
+    cd "$REPO_ROOT"
+    unset CLAUDECODE CLAUDE_CODE_ENTRYPOINT
+    claude -p "$FULL_PROMPT" \
+      --dangerously-skip-permissions \
+      --model "$MODEL" \
+      --max-budget-usd "$BUDGET" \
+      --output-format json \
+      > "$RESULT_FILE" 2>&1
+  ) &
+
+  BATCH_PIDS+=("$!")
+  ENTRIES+=("${PR_NUM}:${RESULT_FILE}")
+  BATCH_NUM=$((BATCH_NUM + 1))
+
+  # When batch is full, wait for all in this batch to finish before spawning more
+  if [[ "$BATCH_NUM" -ge "$MAX_PARALLEL" ]]; then
+    echo -e "${BLUE}→ Batch full ($MAX_PARALLEL agents), waiting...${NC}"
+    for pid in "${BATCH_PIDS[@]}"; do
+      wait "$pid" 2>/dev/null || true
+    done
+    BATCH_PIDS=()
+    BATCH_NUM=0
+    echo -e "${GREEN}→ Batch complete, continuing...${NC}"
+    echo ""
+  fi
+done
+
+# ─── Wait for remaining agents ──────────────────────────────────────
+
+if [[ ${#BATCH_PIDS[@]} -gt 0 ]]; then
+  echo ""
+  echo -e "${BLUE}→ Waiting for remaining ${#BATCH_PIDS[@]} review(s) to complete...${NC}"
+  for pid in "${BATCH_PIDS[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+fi
+
+echo ""
+echo -e "${BOLD}═══ Review Results ═══${NC}"
+echo ""
+
+READY_PRS=()
+NEEDS_WORK_PRS=()
+
+for entry in "${ENTRIES[@]}"; do
+  IFS=':' read -r pr_num result_file <<< "$entry"
+
+  echo -e "${BOLD}PR #${pr_num}:${NC}"
+
+  if [[ -f "$result_file" ]]; then
+    RESULT_TEXT=$(jq -r '.result // .error // "No output"' "$result_file" 2>/dev/null || cat "$result_file")
+    echo "$RESULT_TEXT" | head -60
+    echo ""
+
+    if echo "$RESULT_TEXT" | grep -qi "READY FOR MERGE"; then
+      READY_PRS+=("$pr_num")
+      echo -e "  ${GREEN}→ Verdict: READY FOR MERGE${NC}"
+    elif echo "$RESULT_TEXT" | grep -qi "NEEDS WORK"; then
+      NEEDS_WORK_PRS+=("$pr_num")
+      echo -e "  ${YELLOW}→ Verdict: NEEDS WORK${NC}"
+    elif echo "$RESULT_TEXT" | grep -qi "NEEDS DISCUSSION"; then
+      echo -e "  ${CYAN}→ Verdict: NEEDS DISCUSSION${NC}"
+    else
+      echo -e "  ${YELLOW}→ Verdict: UNCLEAR (check review output)${NC}"
+    fi
+  else
+    echo -e "  ${RED}No result file produced${NC}"
+  fi
+
+  echo "────────────────────────────────────────────────────────"
+  echo ""
+done
+
+# ─── Auto-merge ─────────────────────────────────────────────────────
+
+if [[ "$AUTO_MERGE" == true && ${#READY_PRS[@]} -gt 0 ]]; then
+  echo -e "${BLUE}→ Auto-merging ${#READY_PRS[@]} approved PR(s)...${NC}"
+  echo ""
+
+  for pr_num in "${READY_PRS[@]}"; do
+    echo -e "  ${CYAN}Merging PR #${pr_num}...${NC}"
+
+    if gh pr merge "$pr_num" --squash --delete-branch 2>/dev/null; then
+      echo -e "  ${GREEN}✓ PR #${pr_num} merged${NC}"
+
+      # Clean up local branch
+      PR_BRANCH=$(echo "$PRS_JSON" | jq -r ".[] | select(.number == ${pr_num}) | .headRefName")
+      if [[ -n "$PR_BRANCH" ]]; then
+        git branch -D "$PR_BRANCH" 2>/dev/null || true
+        git fetch --prune origin 2>/dev/null || true
+      fi
+
+      # Transition Linear issue to Done (if configured)
+      if [[ -n "$LINEAR_DONE_STATE_ID" && -n "${LINEAR_API_KEY:-}" ]]; then
+        # Extract Linear issue ID from PR body
+        PR_BODY=$(gh pr view "$pr_num" --json body --jq '.body' 2>/dev/null || echo "")
+        LINEAR_ISSUE_ID=$(echo "$PR_BODY" | grep -oE '[a-f0-9-]{36}' | head -1 || true)
+
+        if [[ -n "$LINEAR_ISSUE_ID" ]]; then
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\":\"mutation { issueUpdate(id: \\\"${LINEAR_ISSUE_ID}\\\", input: { stateId: \\\"${LINEAR_DONE_STATE_ID}\\\" }) { success } }\"}" \
+            > /dev/null 2>&1 && \
+            echo -e "  ${GREEN}  ✓ Linear issue moved to Done${NC}" || \
+            echo -e "  ${YELLOW}  ⚠ Linear transition failed (non-fatal)${NC}"
+        fi
+      fi
+    else
+      echo -e "  ${RED}✗ PR #${pr_num} merge failed${NC}"
+    fi
+
+    echo ""
+  done
+fi
+
+# ─── Summary ────────────────────────────────────────────────────────
+
+echo ""
+echo -e "${BOLD}Summary:${NC}"
+echo "  Total reviewed: $PR_COUNT"
+echo "  Ready to merge: ${#READY_PRS[@]}"
+echo "  Needs work:     ${#NEEDS_WORK_PRS[@]}"
+
+if [[ ${#READY_PRS[@]} -gt 0 && "$AUTO_MERGE" != true ]]; then
+  echo ""
+  echo "  To merge approved PRs:"
+  for pr_num in "${READY_PRS[@]}"; do
+    echo "    gh pr merge ${pr_num} --squash --delete-branch"
+  done
+  echo ""
+  echo "  Or run with --auto-merge:"
+  echo "    scripts/review-prs ${READY_PRS[*]} --auto-merge"
+fi
+
+if [[ ${#NEEDS_WORK_PRS[@]} -gt 0 ]]; then
+  echo ""
+  echo "  PRs needing work:"
+  for pr_num in "${NEEDS_WORK_PRS[@]}"; do
+    echo "    gh pr view ${pr_num} --web"
+  done
+fi
+
+echo ""
+echo -e "${GREEN}✓ Review complete${NC}"

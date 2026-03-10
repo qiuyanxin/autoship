@@ -1,0 +1,39 @@
+{
+  "name": "autoship",
+  "version": "0.1.0",
+  "description": "Autonomous multi-agent orchestrator: Linear issues → Claude Code agents → merged PRs",
+  "type": "module",
+  "private": false,
+  "keywords": [
+    "ai-agent",
+    "multi-agent",
+    "autonomous-coding",
+    "claude-code",
+    "orchestrator",
+    "linear",
+    "agentic-workflow",
+    "code-review",
+    "pr-automation"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qiuyanxin/autoship.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "liquidjs": "^10.17.0",
+    "chokidar": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0",
+    "@types/js-yaml": "^4.0.9"
+  }
+}

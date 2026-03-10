@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Configuration with secrets (use WORKFLOW.example.md as template)
+WORKFLOW.md
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
