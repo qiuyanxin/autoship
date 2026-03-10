@@ -45,7 +45,7 @@ export class ReviewManager {
   constructor(config: ServiceConfig, repoRoot: string) {
     this.config = config;
     this.repoRoot = repoRoot;
-    // Match branches created by symphony agents: mg-*/... or similar issue identifier patterns
+    // Match branches created by autoship agents: mg-*/... or similar issue identifier patterns
     this.branchPattern = /^[a-z]+-\d+\//i;
   }
 
@@ -82,14 +82,14 @@ export class ReviewManager {
         return;
       }
 
-      // Filter to symphony-created PRs that haven't been reviewed yet
+      // Filter to autoship-created PRs that haven't been reviewed yet
       const unreviewedPRs = prs.filter((pr) => {
         if (!this.branchPattern.test(pr.headRefName)) return false;
         return !this.hasReviewComment(pr.number);
       });
 
       if (unreviewedPRs.length === 0) {
-        logger.debug("ReviewManager: no unreviewed symphony PRs");
+        logger.debug("ReviewManager: no unreviewed autoship PRs");
         return;
       }
 

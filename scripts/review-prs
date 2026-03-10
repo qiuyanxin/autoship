@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Symphony PR Review ──────────────────────────────────────────────
+# ─── Autoship PR Review ──────────────────────────────────────────────
 # Spawns Claude reviewer agents to review open PRs in parallel.
 # After review, can auto-merge approved PRs and update Linear issues.
 #
@@ -90,7 +90,7 @@ mkdir -p "$RESULTS_DIR"
 
 # ─── Fetch PRs ───────────────────────────────────────────────────────
 
-echo -e "${BOLD}═══ Symphony PR Review ═══${NC}"
+echo -e "${BOLD}═══ Autoship PR Review ═══${NC}"
 echo ""
 
 if [[ ${#PR_NUMBERS[@]} -gt 0 ]]; then

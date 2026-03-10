@@ -237,7 +237,7 @@ export class Orchestrator {
   }
 
   async start(): Promise<void> {
-    logger.info("Symphony orchestrator starting", {
+    logger.info("Autoship orchestrator starting", {
       poll_interval_ms: this.state.pollIntervalMs,
       max_concurrent: this.state.maxConcurrentAgents,
     });
@@ -267,7 +267,7 @@ export class Orchestrator {
   }
 
   async stop(): Promise<void> {
-    logger.info("Symphony orchestrator stopping");
+    logger.info("Autoship orchestrator stopping");
 
     // Stop ReviewManager
     this.reviewManager?.stop();
@@ -295,7 +295,7 @@ export class Orchestrator {
     this.state.running.clear();
     this.state.claimed.clear();
 
-    logger.info("Symphony orchestrator stopped");
+    logger.info("Autoship orchestrator stopped");
   }
 
   async triggerPoll(): Promise<void> {
@@ -488,7 +488,7 @@ export class Orchestrator {
     }
   }
 
-  // SPEC 11.5: Symphony is a scheduler/runner and tracker READER.
+  // SPEC 11.5: Autoship is a scheduler/runner and tracker READER.
   // No tracker writes here — state transitions are handled by the coding agent.
   private dispatchIssue(issue: Issue): void {
     const abortController = new AbortController();

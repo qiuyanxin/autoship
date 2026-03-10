@@ -71,8 +71,8 @@ Most AI coding agent orchestrators focus on one piece of the puzzle. Autoship ha
 ### Install
 
 ```bash
-git clone https://github.com/user/symphony.git
-cd symphony
+git clone https://github.com/qiuyanxin/autoship.git
+cd autoship
 pnpm install
 ```
 
@@ -198,7 +198,7 @@ Available template variables: `issue.identifier`, `issue.title`, `issue.descript
 | `tracker.active_states`       | `["Todo", "In Progress"]`      | States that trigger dispatch           |
 | `tracker.terminal_states`     | `["Done", "Closed", ...]`      | States that stop agents                |
 | `polling.interval_ms`         | `30000`                        | Poll interval (ms)                     |
-| `workspace.root`              | `/tmp/symphony_workspaces`     | Parent dir for workspaces              |
+| `workspace.root`              | `/tmp/autoship_workspaces`     | Parent dir for workspaces              |
 | `workspace.repo_url`          | —                              | Git repo to clone into each workspace  |
 | `hooks.after_create`          | —                              | Shell command after workspace creation |
 | `hooks.before_run`            | —                              | Shell command before agent launch      |

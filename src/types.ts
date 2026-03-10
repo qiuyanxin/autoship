@@ -1,4 +1,4 @@
-// Symphony Domain Model Types (SPEC.md Section 4)
+// Autoship Domain Model Types (SPEC.md Section 4)
 
 /** Normalized issue record from tracker (Section 4.1.1) */
 export interface Issue {

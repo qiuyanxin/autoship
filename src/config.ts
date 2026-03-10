@@ -22,7 +22,7 @@ const DEFAULTS = {
     terminalStates: ["Closed", "Cancelled", "Canceled", "Duplicate", "Done"],
   },
   polling: { intervalMs: 30_000 },
-  workspace: { root: join(tmpdir(), "symphony_workspaces") },
+  workspace: { root: join(tmpdir(), "autoship_workspaces") },
   hooks: {
     afterCreate: null,
     beforeRun: null,

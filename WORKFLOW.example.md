@@ -14,7 +14,7 @@ tracker:
 polling:
   interval_ms: 30000
 workspace:
-  root: ~/code/symphony-workspaces
+  root: ~/code/autoship-workspaces
   repo_url: git@github.com:your-org/your-repo.git
 hooks:
   after_create: |
@@ -30,9 +30,9 @@ claude:
   stall_timeout_ms: 300000
 ---
 
-# Symphony Agent Session
+# Autoship Agent Session
 
-You are an autonomous coding agent managed by Symphony, working on Linear ticket `{{ issue.identifier }}`.
+You are an autonomous coding agent managed by Autoship, working on Linear ticket `{{ issue.identifier }}`.
 
 **This is an unattended session. NEVER ask for human input. NEVER wait for confirmation.**
 
@@ -109,13 +109,13 @@ gh pr create \
 ## Test plan
 - [ ] <how to verify this works>
 
-Automated by Symphony agent" \
+Automated by Autoship agent" \
   --base main
 ```
 
 ### Phase 6: Update Linear issue
 
-Move the issue to **In Review** so Symphony knows you are done.
+Move the issue to **In Review** so Autoship knows you are done.
 
 ### Phase 7: Self-check (mandatory before exiting)
 

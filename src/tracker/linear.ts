@@ -7,7 +7,7 @@ const ISSUE_PAGE_SIZE = 50;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 const QUERY = `
-query SymphonyLinearPoll($projectSlug: String!, $stateNames: [String!]!, $first: Int!, $relationFirst: Int!, $after: String) {
+query AutoshipLinearPoll($projectSlug: String!, $stateNames: [String!]!, $first: Int!, $relationFirst: Int!, $after: String) {
   issues(filter: {project: {slugId: {eq: $projectSlug}}, state: {name: {in: $stateNames}}}, first: $first, after: $after) {
     nodes {
       id
@@ -40,7 +40,7 @@ query SymphonyLinearPoll($projectSlug: String!, $stateNames: [String!]!, $first:
 }`;
 
 const QUERY_BY_IDS = `
-query SymphonyLinearIssuesById($ids: [ID!]!, $first: Int!, $relationFirst: Int!) {
+query AutoshipLinearIssuesById($ids: [ID!]!, $first: Int!, $relationFirst: Int!) {
   issues(filter: {id: {in: $ids}}, first: $first) {
     nodes {
       id

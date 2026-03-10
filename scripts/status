@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Symphony Status Dashboard ─────────────────────────────────────
+# ─── Autoship Status Dashboard ─────────────────────────────────────
 # Queries the HTTP API + workspace directory to show a live dashboard.
 #
 # Usage:
@@ -21,7 +21,7 @@ NC='\033[0m'
 
 # ─── Parse Args ─────────────────────────────────────────────────────
 PORT=4800
-WORKSPACE_ROOT="$HOME/code/symphony-workspaces"
+WORKSPACE_ROOT="$HOME/code/autoship-workspaces"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -33,7 +33,7 @@ Usage: scripts/status [options]
 
 Options:
   --port N              HTTP API port (default: 4800)
-  --workspace-root DIR  Workspace directory (default: ~/code/symphony-workspaces)
+  --workspace-root DIR  Workspace directory (default: ~/code/autoship-workspaces)
 
 EOF
       exit 0
@@ -44,7 +44,7 @@ done
 
 API_URL="http://localhost:${PORT}/api/v1/state"
 
-echo -e "${BOLD}═══ Symphony Status Dashboard ═══${NC}"
+echo -e "${BOLD}═══ Autoship Status Dashboard ═══${NC}"
 echo ""
 
 # ─── Try HTTP API ───────────────────────────────────────────────────
@@ -107,7 +107,7 @@ if [[ -n "$API_DATA" && "$API_DATA" != "" ]]; then
   fi
 else
   echo -e "${YELLOW}API not reachable at ${API_URL}${NC}"
-  echo -e "${DIM}(Start symphony or check --port)${NC}"
+  echo -e "${DIM}(Start autoship or check --port)${NC}"
   echo ""
 fi
 

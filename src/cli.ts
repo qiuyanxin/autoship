@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Symphony CLI entry point (SPEC Section 12)
+// Autoship CLI entry point (SPEC Section 12)
 
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown);
 
   // Start orchestrator
-  logger.info("Symphony started", {
+  logger.info("Autoship started", {
     workflow: expandedPath,
     tracker_kind: config.tracker.kind,
     project_slug: config.tracker.projectSlug ?? "n/a",
