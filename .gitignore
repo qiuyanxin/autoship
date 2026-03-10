@@ -7,6 +7,9 @@ dist/
 # Configuration with secrets (use WORKFLOW.example.md as template)
 WORKFLOW.md
 
+# Internal docs (not for public repo)
+docs/
+
 # OS
 .DS_Store
 
