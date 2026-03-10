@@ -364,3 +364,12 @@ MIT
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic — the AI coding agent runtime
 - [Linear](https://linear.app/) — issue tracking API
 - Inspired by the shift from "AI coding assistants" to "AI coding agents that ship code autonomously"
+
+### References & Inspirations
+
+| Project                                                                   | Description                                                                                                                                                                                        | What We Learned                                                                                                                      |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [OpenAI Symphony](https://github.com/openai/symphony)                     | Elixir-based autonomous coding orchestrator with Linear integration. Specification-driven architecture (SPEC.md) allowing pluggable tracker/workspace/prompt implementations.                      | Specification-first design pattern, tracker abstraction boundaries, workspace isolation model, prompt rendering via Liquid templates |
+| [La-fe/multi-agent-factory](https://github.com/La-fe/multi-agent-factory) | Node.js/TypeScript multi-agent orchestrator reverse-engineered from OpenClaw patterns (30 AI agents, 627 commits/day). 6-stage pipeline with wave-based parallel execution and worktree isolation. | Wave-based parallel dispatch, git worktree isolation strategy, 6-phase agent lifecycle, Claude Code CLI integration patterns         |
+
+Autoship builds on ideas from both projects while adding the full review-merge-cleanup lifecycle and dual-layer stall detection that neither provides out of the box.
